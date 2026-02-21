@@ -8,6 +8,7 @@ struct DeckDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showBuilder = false
     @State private var showCodeCopied = false
+    @State private var showDeleteConfirmation = false
 
     private var sortedEntries: [DeckEntry] {
         deck.entries.sorted { ($0.card.attributes.energy ?? 0) < ($1.card.attributes.energy ?? 0) }
@@ -90,6 +91,20 @@ struct DeckDetailView: View {
                 .padding(.horizontal)
             }
             .padding(.vertical)
+
+                // Delete button
+                Button(role: .destructive) {
+                    showDeleteConfirmation = true
+                } label: {
+                    HStack {
+                        Spacer()
+                        Label("Apagar Deck", systemImage: "trash")
+                        Spacer()
+                    }
+                    .padding(.vertical, 12)
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 20)
         }
         .navigationTitle(deck.name)
         .navigationBarTitleDisplayMode(.inline)
@@ -114,6 +129,15 @@ struct DeckDetailView: View {
                     }
                 }
             }
+        }
+        .confirmationDialog("Apagar este deck?", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
+            Button("Apagar", role: .destructive) {
+                deckStore.deleteDeck(id: deck.id)
+                dismiss()
+            }
+            Button("Cancelar", role: .cancel) {}
+        } message: {
+            Text("Esta ação não pode ser revertida.")
         }
         .fullScreenCover(isPresented: $showBuilder) {
             NavigationStack {
