@@ -70,7 +70,7 @@ enum CardRecognitionService {
                 }
             }
 
-            if bestScore >= 0.75 {
+            if bestScore >= 0.80 {
                 let existing = bestMatches[card.id]
                 if existing == nil || existing!.confidence < bestScore {
                     bestMatches[card.id] = CardMatch(card: card, confidence: bestScore)

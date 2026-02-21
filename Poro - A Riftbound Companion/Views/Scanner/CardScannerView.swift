@@ -27,10 +27,14 @@ struct CardScannerView: View {
             .navigationTitle("Scanner")
             .navigationBarTitleDisplayMode(.inline)
             .onAppear {
-                cameraManager.requestPermission()
+                if cameraManager.permissionGranted {
+                    setupRecognition()
+                    cameraManager.startSession()
+                } else {
+                    cameraManager.requestPermission()
+                }
             }
             .task {
-                // Preload card cache for matching
                 await cardCache.loadIfNeeded()
             }
             .onChange(of: cameraManager.permissionGranted) {
@@ -41,6 +45,7 @@ struct CardScannerView: View {
             }
             .onDisappear {
                 cameraManager.stopSession()
+                matches = []
             }
         }
     }
@@ -176,10 +181,12 @@ struct CardScannerView: View {
                     nonisolated(unsafe) let buf = buffer
                     let texts = CardRecognitionService.recognizeText(from: buf)
                     let results = CardRecognitionService.matchCards(texts: texts, against: allCards)
+                    // Only show results with high confidence
+                    let filtered = results.filter { $0.confidence >= 0.85 }
 
                     await MainActor.run {
                         withAnimation {
-                            matches = results
+                            matches = filtered
                         }
                         isProcessing = false
                     }
