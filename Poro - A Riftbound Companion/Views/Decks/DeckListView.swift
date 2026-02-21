@@ -3,8 +3,10 @@ import SwiftUI
 struct DeckListView: View {
     let collectionStore: CollectionStore
     let deckStore: DeckStore
+    let cardCache: CardCache
 
     @State private var showLegendPicker = false
+    @State private var showImport = false
     @State private var selectedDeck: Deck?
 
     var body: some View {
@@ -37,6 +39,13 @@ struct DeckListView: View {
             }
             .navigationTitle("Decks")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showImport = true
+                    } label: {
+                        Image(systemName: "square.and.arrow.down")
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showLegendPicker = true
@@ -55,6 +64,13 @@ struct DeckListView: View {
                 NavigationStack {
                     DeckDetailView(deck: deck, deckStore: deckStore, collectionStore: collectionStore)
                 }
+            }
+            .sheet(isPresented: $showImport) {
+                DeckImportView(
+                    collectionStore: collectionStore,
+                    deckStore: deckStore,
+                    cardCache: cardCache
+                )
             }
         }
     }

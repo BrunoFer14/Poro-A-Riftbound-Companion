@@ -2,8 +2,7 @@ import SwiftUI
 
 struct CardListView: View {
     let collectionStore: CollectionStore
-
-    @State private var cardCache = CardCache()
+    let cardCache: CardCache
     @State private var sets: [CardSetDetail] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
