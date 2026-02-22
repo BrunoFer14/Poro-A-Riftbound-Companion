@@ -91,29 +91,26 @@ struct DeckDetailView: View {
                 .padding(.horizontal)
             }
             .padding(.vertical)
-
-                // Delete button
-                Button(role: .destructive) {
-                    showDeleteConfirmation = true
-                } label: {
-                    HStack {
-                        Spacer()
-                        Label("Apagar Deck", systemImage: "trash")
-                        Spacer()
-                    }
-                    .padding(.vertical, 12)
-                }
-                .padding(.horizontal)
-                .padding(.bottom, 20)
         }
         .navigationTitle(deck.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button("Fechar") { dismiss() }
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "chevron.left")
+                }
             }
             ToolbarItem(placement: .topBarTrailing) {
                 HStack(spacing: 12) {
+                    Button {
+                        showDeleteConfirmation = true
+                    } label: {
+                        Image(systemName: "trash")
+                            .foregroundStyle(.red)
+                    }
+
                     Button {
                         let code = DeckCodec.encode(deck: deck)
                         UIPasteboard.general.string = code
