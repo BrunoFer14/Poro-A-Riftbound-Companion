@@ -14,7 +14,7 @@ struct ContentView: View {
                 CollectionView(collectionStore: collectionStore)
             }
             Tab("Decks", systemImage: "square.3.layers.3d") {
-                DeckListView(collectionStore: collectionStore, deckStore: deckStore)
+                DeckListView(collectionStore: collectionStore, deckStore: deckStore, cardCache: cardCache)
             }
             Tab("Scanner", systemImage: "camera.viewfinder") {
                 CardScannerView(collectionStore: collectionStore, cardCache: cardCache)

@@ -7,6 +7,8 @@ struct DeckDetailView: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var showBuilder = false
+    @State private var showCodeCopied = false
+    @State private var showDeleteConfirmation = false
 
     private var sortedEntries: [DeckEntry] {
         deck.entries.sorted { ($0.card.attributes.energy ?? 0) < ($1.card.attributes.energy ?? 0) }
@@ -94,15 +96,45 @@ struct DeckDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button("Fechar") { dismiss() }
-            }
-            ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    showBuilder = true
+                    dismiss()
                 } label: {
-                    Text("Editar")
+                    Image(systemName: "chevron.left")
                 }
             }
+            ToolbarItem(placement: .topBarTrailing) {
+                HStack(spacing: 12) {
+                    Button {
+                        showDeleteConfirmation = true
+                    } label: {
+                        Image(systemName: "trash")
+                            .foregroundStyle(.red)
+                    }
+
+                    Button {
+                        let code = DeckCodec.encode(deck: deck)
+                        UIPasteboard.general.string = code
+                        showCodeCopied = true
+                    } label: {
+                        Image(systemName: "square.on.square")
+                    }
+
+                    Button {
+                        showBuilder = true
+                    } label: {
+                        Text("Editar")
+                    }
+                }
+            }
+        }
+        .confirmationDialog("Apagar este deck?", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
+            Button("Apagar", role: .destructive) {
+                deckStore.deleteDeck(id: deck.id)
+                dismiss()
+            }
+            Button("Cancelar", role: .cancel) {}
+        } message: {
+            Text("Esta ação não pode ser revertida.")
         }
         .fullScreenCover(isPresented: $showBuilder) {
             NavigationStack {
@@ -113,5 +145,25 @@ struct DeckDetailView: View {
                 )
             }
         }
+        .overlay(alignment: .bottom) {
+            if showCodeCopied {
+                Text("Código copiado!")
+                    .font(.subheadline.bold())
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(.green, in: .capsule)
+                    .shadow(radius: 4)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .padding(.bottom, 20)
+                    .onAppear {
+                        Task {
+                            try? await Task.sleep(for: .seconds(2))
+                            withAnimation { showCodeCopied = false }
+                        }
+                    }
+            }
+        }
+        .animation(.snappy, value: showCodeCopied)
     }
 }
