@@ -65,11 +65,18 @@ struct LegendPickerView: View {
     }
 
     private func createDeck(with legend: Card) {
+        // Initialize runes with 0 for each legend domain
+        var initialRunes: [String: Int] = [:]
+        for domain in legend.classification.domain {
+            initialRunes[domain] = 0
+        }
+
         let deck = Deck(
             id: UUID(),
             name: legend.name,
             legend: legend,
             entries: [],
+            runes: initialRunes,
             createdAt: .now
         )
         createdDeck = deck

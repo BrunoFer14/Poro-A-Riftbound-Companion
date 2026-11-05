@@ -1,8 +1,11 @@
 import SwiftUI
 
+private struct AllCardsRoute: Hashable {}
+
 struct CardListView: View {
     let collectionStore: CollectionStore
     let cardCache: CardCache
+    var authService: AuthService? = nil
     @State private var sets: [CardSetDetail] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
@@ -27,9 +30,15 @@ struct CardListView: View {
                         .padding(.bottom, 40)
                     }
                 } else {
-                    List(sets) { set in
-                        NavigationLink(value: set) {
-                            SetRowView(set: set)
+                    List {
+                        NavigationLink(value: AllCardsRoute()) {
+                            AllCardsRowView()
+                        }
+
+                        ForEach(sets) { set in
+                            NavigationLink(value: set) {
+                                SetRowView(set: set)
+                            }
                         }
                     }
                     .listStyle(.plain)
@@ -37,7 +46,10 @@ struct CardListView: View {
             }
             .navigationTitle("Cartas")
             .navigationDestination(for: CardSetDetail.self) { set in
-                SetCardListView(set: set, collectionStore: collectionStore, cardCache: cardCache)
+                SetCardListView(set: set, collectionStore: collectionStore, cardCache: cardCache, authService: authService)
+            }
+            .navigationDestination(for: AllCardsRoute.self) { _ in
+                AllCardsView(collectionStore: collectionStore, cardCache: cardCache, authService: authService)
             }
         }
         .task {
@@ -50,13 +62,32 @@ struct CardListView: View {
         errorMessage = nil
 
         do {
-            let response = try await SetService.fetchSets()
-            sets = response.items.sorted { $0.publishDate > $1.publishDate }
+            let items = try await SetService.fetchSets()
+            sets = items.sorted { $0.publishedOn > $1.publishedOn }
             isLoading = false
         } catch {
             errorMessage = error.localizedDescription
             isLoading = false
         }
+    }
+}
+
+private struct AllCardsRowView: View {
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Todas as Cartas")
+                    .font(.headline)
+                Text("Pesquisar em todas as expansões")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Image(systemName: "magnifyingglass")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.vertical, 4)
     }
 }
 

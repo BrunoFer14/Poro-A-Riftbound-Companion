@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct DeckDetailView: View {
-    let deck: Deck
+    let deckId: UUID
     let deckStore: DeckStore
     let collectionStore: CollectionStore
 
@@ -10,17 +10,38 @@ struct DeckDetailView: View {
     @State private var showCodeCopied = false
     @State private var showDeleteConfirmation = false
 
-    private var sortedEntries: [DeckEntry] {
-        deck.entries.sorted { ($0.card.attributes.energy ?? 0) < ($1.card.attributes.energy ?? 0) }
+    private var deck: Deck? {
+        deckStore.decks.first { $0.id == deckId }
     }
 
     private let columns = [
         GridItem(.adaptive(minimum: 100), spacing: 12)
     ]
 
+    private struct CardTypeSection: Identifiable {
+        let type: String
+        let label: String
+        let entries: [DeckEntry]
+        var id: String { type }
+        var totalCards: Int { entries.reduce(0) { $0 + $1.quantity } }
+    }
+
+    private var groupedSections: [CardTypeSection] {
+        let entries = deck?.entries ?? []
+        let typeOrder = ["Unit", "Gear", "Spell"]
+        let labels = ["Unit": "Units", "Gear": "Gear", "Spell": "Spells"]
+        let grouped = Dictionary(grouping: entries) { $0.card.classification.type }
+
+        return typeOrder.compactMap { type in
+            guard let sectionEntries = grouped[type], !sectionEntries.isEmpty else { return nil }
+            let sorted = sectionEntries.sorted { ($0.card.attributes.energy ?? 0) < ($1.card.attributes.energy ?? 0) }
+            return CardTypeSection(type: type, label: labels[type] ?? type, entries: sorted)
+        }
+    }
+
     private var energyCurve: [(Int, Int)] {
         var curve: [Int: Int] = [:]
-        for entry in deck.entries {
+        for entry in (deck?.entries ?? []) {
             let energy = entry.card.attributes.energy ?? 0
             curve[energy, default: 0] += entry.quantity
         }
@@ -28,6 +49,7 @@ struct DeckDetailView: View {
     }
 
     var body: some View {
+        if let deck {
         ScrollView {
             VStack(spacing: 16) {
                 // Legend section
@@ -67,28 +89,83 @@ struct DeckDetailView: View {
                     .padding(.horizontal)
                 }
 
-                // Cards grid
-                LazyVGrid(columns: columns, spacing: 12) {
-                    ForEach(sortedEntries) { entry in
-                        VStack(spacing: 4) {
-                            CardImageView(url: entry.card.media.imageUrl, width: 100, height: 140)
-                                .overlay(alignment: .topTrailing) {
-                                    Text("×\(entry.quantity)")
-                                        .font(.caption.bold())
-                                        .foregroundStyle(.white)
-                                        .padding(.horizontal, 6)
-                                        .padding(.vertical, 2)
-                                        .background(.tint, in: .capsule)
-                                        .padding(4)
-                                }
+                // Runes
+                if deck.totalRunes > 0 {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("Runes")
+                                .font(.headline)
+                            Text("(\(deck.totalRunes)/12)")
+                                .font(.subheadline)
+                                .foregroundStyle(deck.hasAllRunes ? .green : .orange)
+                        }
 
-                            Text(entry.card.name)
-                                .font(.caption2)
-                                .lineLimit(1)
+                        HStack(spacing: 12) {
+                            ForEach(deck.domains, id: \.self) { domain in
+                                if let count = deck.runes[domain], count > 0 {
+                                    HStack(spacing: 4) {
+                                        DomainBadge(domain: domain)
+                                        Text("×\(count)")
+                                            .font(.subheadline.bold().monospacedDigit())
+                                    }
+                                }
+                            }
                         }
                     }
+                    .padding(.horizontal)
                 }
-                .padding(.horizontal)
+
+                // Battlefields
+                if !deck.battlefields.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Battlefields (\(deck.battlefields.count)/3)")
+                            .font(.headline)
+
+                        HStack(spacing: 8) {
+                            ForEach(deck.battlefields) { battlefield in
+                                VStack(spacing: 4) {
+                                    CardImageView(url: battlefield.media.imageUrl, width: 80, height: 112)
+                                    Text(battlefield.name)
+                                        .font(.caption2)
+                                        .lineLimit(1)
+                                }
+                                .frame(maxWidth: .infinity)
+                            }
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+
+                // Cards grouped by type
+                ForEach(groupedSections) { section in
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("\(section.label) (\(section.totalCards))")
+                            .font(.headline)
+                            .padding(.horizontal)
+
+                        LazyVGrid(columns: columns, spacing: 12) {
+                            ForEach(section.entries) { entry in
+                                VStack(spacing: 4) {
+                                    CardImageView(url: entry.card.media.imageUrl, width: 100, height: 140)
+                                        .overlay(alignment: .topTrailing) {
+                                            Text("×\(entry.quantity)")
+                                                .font(.caption.bold())
+                                                .foregroundStyle(.white)
+                                                .padding(.horizontal, 6)
+                                                .padding(.vertical, 2)
+                                                .background(.tint, in: .capsule)
+                                                .padding(4)
+                                        }
+
+                                    Text(entry.card.name)
+                                        .font(.caption2)
+                                        .lineLimit(1)
+                                }
+                            }
+                        }
+                        .padding(.horizontal)
+                    }
+                }
             }
             .padding(.vertical)
         }
@@ -129,7 +206,7 @@ struct DeckDetailView: View {
         }
         .confirmationDialog("Apagar este deck?", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
             Button("Apagar", role: .destructive) {
-                deckStore.deleteDeck(id: deck.id)
+                deckStore.deleteDeck(id: deckId)
                 dismiss()
             }
             Button("Cancelar", role: .cancel) {}
@@ -165,5 +242,8 @@ struct DeckDetailView: View {
             }
         }
         .animation(.snappy, value: showCodeCopied)
+        } else {
+            ContentUnavailableView("Deck não encontrado", systemImage: "exclamationmark.triangle")
+        }
     }
 }

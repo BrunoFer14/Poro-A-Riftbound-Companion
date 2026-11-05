@@ -1,15 +1,34 @@
 import SwiftUI
+import FirebaseAuth
 
 struct CardDetailView: View {
     let card: Card
     let collectionStore: CollectionStore
+    var authService: AuthService? = nil
+    var cardCache: CardCache? = nil
+
+    @State private var showSellSheet = false
+    @State private var showBuySheet = false
+    @State private var sellViewModel = MarketplaceViewModel()
 
     var quantity: Int {
         collectionStore.quantity(for: card.id)
     }
 
+    var foilQty: Int {
+        collectionStore.foilQuantity(for: card.id)
+    }
+
+    var promoQty: Int {
+        collectionStore.promoQuantity(for: card.id)
+    }
+
+    private var otherVersions: [Card] {
+        cardCache?.otherVersions(of: card) ?? []
+    }
+
     private var cardmarketURL: URL? {
-        let slug = card.metadata.cleanName
+        let slug = (card.metadata.cleanName ?? card.name)
             .replacingOccurrences(of: " ", with: "-")
         let path = "/en/Riftbound/Cards/\(slug)"
         var components = URLComponents()
@@ -77,11 +96,38 @@ struct CardDetailView: View {
                             .foregroundStyle(.secondary)
                     }
 
+                    if let flavour = card.text.flavour, !flavour.isEmpty {
+                        Text(flavour)
+                            .font(.subheadline.italic())
+                            .foregroundStyle(.tertiary)
+                            .padding(.top, card.text.plain.isEmpty ? 0 : 4)
+                    }
+
                     if !card.tags.isEmpty {
                         Divider()
                         Text(card.tags.map { "#\($0)" }.joined(separator: "  "))
                             .font(.caption)
                             .foregroundStyle(.tertiary)
+                    }
+
+                    // Other versions
+                    if !otherVersions.isEmpty {
+                        Divider()
+                        NavigationLink(value: CardVersionsDestination(card: card)) {
+                            HStack(spacing: 10) {
+                                Image(systemName: "square.stack.3d.up")
+                                    .font(.body)
+                                Text("Outras versões (\(otherVersions.count))")
+                                    .font(.subheadline.weight(.medium))
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(12)
+                            .background(.tint.opacity(0.1), in: .rect(cornerRadius: 10))
+                        }
+                        .buttonStyle(.plain)
                     }
 
                     // Cardmarket link
@@ -103,9 +149,39 @@ struct CardDetailView: View {
                         }
                     }
 
+                    // Marketplace actions (only when logged in)
+                    if let auth = authService, auth.isLoggedIn {
+                        Divider()
+                        HStack(spacing: 12) {
+                            Button {
+                                showBuySheet = true
+                            } label: {
+                                Label("Comprar", systemImage: "magnifyingglass")
+                                    .font(.subheadline.weight(.medium))
+                                    .frame(maxWidth: .infinity)
+                                    .padding(12)
+                                    .background(Color.accentColor.opacity(0.1), in: .rect(cornerRadius: 10))
+                                    .foregroundStyle(Color.accentColor)
+                            }
+                            .buttonStyle(.plain)
+
+                            Button {
+                                showSellSheet = true
+                            } label: {
+                                Label("Vender", systemImage: "tag")
+                                    .font(.subheadline.weight(.medium))
+                                    .frame(maxWidth: .infinity)
+                                    .padding(12)
+                                    .background(Color.green.opacity(0.1), in: .rect(cornerRadius: 10))
+                                    .foregroundStyle(Color.green)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+
                     Divider()
 
-                    // Collection stepper
+                    // Collection stepper — normal
                     HStack {
                         Spacer()
                         Button {
@@ -138,6 +214,84 @@ struct CardDetailView: View {
                         Spacer()
                     }
                     .padding(.vertical, 8)
+
+                    // Collection stepper — foil
+                    HStack {
+                        Spacer()
+                        Button {
+                            collectionStore.decrementFoil(card)
+                        } label: {
+                            Image(systemName: "minus.circle.fill")
+                                .font(.system(size: 28))
+                                .foregroundStyle(foilQty > 0 ? Color.red : Color.secondary.opacity(0.3))
+                        }
+                        .disabled(foilQty == 0)
+
+                        VStack(spacing: 2) {
+                            HStack(spacing: 4) {
+                                Text("✦")
+                                    .font(.title3)
+                                    .foregroundStyle(.purple)
+                                Text("\(foilQty)")
+                                    .font(.system(size: 30, weight: .bold, design: .rounded))
+                                    .contentTransition(.numericText())
+                                    .animation(.snappy, value: foilQty)
+                            }
+                            Text("foil")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(minWidth: 100)
+
+                        Button {
+                            collectionStore.incrementFoil(card)
+                        } label: {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 28))
+                                .foregroundStyle(.purple)
+                        }
+                        Spacer()
+                    }
+                    .padding(.bottom, 8)
+
+                    // Collection stepper — promo
+                    HStack {
+                        Spacer()
+                        Button {
+                            collectionStore.decrementPromo(card)
+                        } label: {
+                            Image(systemName: "minus.circle.fill")
+                                .font(.system(size: 28))
+                                .foregroundStyle(promoQty > 0 ? Color.red : Color.secondary.opacity(0.3))
+                        }
+                        .disabled(promoQty == 0)
+
+                        VStack(spacing: 2) {
+                            HStack(spacing: 4) {
+                                Text("P")
+                                    .font(.title3.bold())
+                                    .foregroundStyle(.orange)
+                                Text("\(promoQty)")
+                                    .font(.system(size: 30, weight: .bold, design: .rounded))
+                                    .contentTransition(.numericText())
+                                    .animation(.snappy, value: promoQty)
+                            }
+                            Text("promo")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(minWidth: 100)
+
+                        Button {
+                            collectionStore.incrementPromo(card)
+                        } label: {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 28))
+                                .foregroundStyle(.orange)
+                        }
+                        Spacer()
+                    }
+                    .padding(.bottom, 8)
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 32)
@@ -145,8 +299,114 @@ struct CardDetailView: View {
         }
         .navigationTitle(card.name)
         .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(for: CardVersionsDestination.self) { dest in
+            CardVersionsView(
+                card: dest.card,
+                collectionStore: collectionStore,
+                cardCache: cardCache,
+                authService: authService
+            )
+        }
+        .sheet(isPresented: $showSellSheet) {
+            if let auth = authService {
+                CreateListingView(
+                    authService: auth,
+                    cardCache: cardCache ?? CardCache(),
+                    viewModel: sellViewModel,
+                    preselectedCard: card
+                )
+            }
+        }
+        .sheet(isPresented: $showBuySheet) {
+            CardListingsSheet(cardName: card.name, authService: authService)
+        }
     }
 }
+
+// MARK: - Navigation Value
+
+struct CardVersionsDestination: Hashable {
+    let card: Card
+}
+
+// MARK: - Card Versions View
+
+struct CardVersionsView: View {
+    let card: Card
+    let collectionStore: CollectionStore
+    let cardCache: CardCache?
+    let authService: AuthService?
+
+    private var versions: [Card] {
+        cardCache?.otherVersions(of: card) ?? []
+    }
+
+    private let columns = [GridItem(.adaptive(minimum: 100), spacing: 12)]
+
+    var body: some View {
+        ScrollView {
+            LazyVGrid(columns: columns, spacing: 12) {
+                ForEach(versions) { version in
+                    NavigationLink(value: version) {
+                        VStack(spacing: 6) {
+                            CardImageView(url: version.media.imageUrl, width: 100, height: 140)
+                                .overlay(alignment: .topTrailing) {
+                                    let qty = collectionStore.totalQuantity(for: version.id)
+                                    if qty > 0 {
+                                        Text("×\(qty)")
+                                            .font(.caption2.bold())
+                                            .foregroundStyle(.white)
+                                            .padding(.horizontal, 5)
+                                            .padding(.vertical, 2)
+                                            .background(.secondary, in: .capsule)
+                                            .padding(4)
+                                    }
+                                }
+                                .overlay(alignment: .topLeading) {
+                                    let foil = collectionStore.foilQuantity(for: version.id)
+                                    if foil > 0 {
+                                        Text("✦\(foil)")
+                                            .font(.caption2.bold())
+                                            .foregroundStyle(.white)
+                                            .padding(.horizontal, 5)
+                                            .padding(.vertical, 2)
+                                            .background(
+                                                LinearGradient(colors: [.purple, .blue], startPoint: .leading, endPoint: .trailing)
+                                                    .opacity(0.85),
+                                                in: .capsule
+                                            )
+                                            .padding(4)
+                                    }
+                                }
+                                .opacity(collectionStore.totalQuantity(for: version.id) > 0 ? 1.0 : 0.4)
+
+                            VStack(spacing: 2) {
+                                Text(version.name)
+                                    .font(.caption2)
+                                    .lineLimit(2)
+                                    .multilineTextAlignment(.center)
+                                    .foregroundStyle(collectionStore.totalQuantity(for: version.id) > 0 ? .primary : .secondary)
+                                Text(version.set.label)
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                                    .lineLimit(1)
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding()
+        }
+        .navigationTitle("Outras versões")
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(for: Card.self) { card in
+            CardDetailView(card: card, collectionStore: collectionStore, authService: authService, cardCache: cardCache)
+        }
+    }
+}
+
+// MARK: - Private Views
 
 private struct AttributeChip: View {
     let label: String

@@ -16,3 +16,6 @@ build/
 
 # Claude Code
 .claude/
+
+# Firebase — contains project credentials, add your own from Firebase Console
+GoogleService-Info.plist

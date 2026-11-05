@@ -7,9 +7,15 @@ struct CardMatch: Identifiable, Sendable {
     let confidence: Double
 }
 
+struct CardCodeExtraction: Sendable {
+    let setId: String
+    let collectorNumber: Int
+    let suffix: String?
+    let hasTotal: Bool
+}
+
 enum CardRecognitionService {
 
-    /// Extract text from a camera sample buffer using Vision OCR.
     nonisolated static func recognizeText(from sampleBuffer: CMSampleBuffer) -> [String] {
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return [] }
 
@@ -21,102 +27,107 @@ enum CardRecognitionService {
         let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, orientation: .right)
         try? handler.perform([request])
 
-        guard let observations = request.results else { return [] }
-        return observations.compactMap { $0.topCandidates(1).first?.string }
+        return request.results?.compactMap { $0.topCandidates(1).first?.string } ?? []
     }
 
-    /// Match recognized text segments against a list of cards.
-    nonisolated static func matchCards(texts: [String], against cards: [Card]) -> [CardMatch] {
-        guard !texts.isEmpty, !cards.isEmpty else { return [] }
+    // MARK: - Code Extraction
 
-        let normalizedTexts = texts.map { normalize($0) }
-        var bestMatches: [String: CardMatch] = [:]
+    nonisolated static func extractCodes(from texts: [String], knownSetIds: Set<String>) -> [CardCodeExtraction] {
+        guard !texts.isEmpty else { return [] }
 
-        for card in cards {
-            let cardName = normalize(card.name)
-            guard cardName.count >= 3 else { continue }
+        var results: [CardCodeExtraction] = []
+        let allTexts = texts + [texts.joined(separator: " ")]
 
-            var bestScore = 0.0
-
-            // Check each OCR text segment
-            for text in normalizedTexts {
-                // Exact containment
-                if text.contains(cardName) || cardName.contains(text) {
-                    let ratio = Double(min(text.count, cardName.count)) / Double(max(text.count, cardName.count))
-                    bestScore = max(bestScore, 0.7 + ratio * 0.3)
-                    continue
-                }
-
-                // Levenshtein similarity
-                let distance = levenshteinDistance(text, cardName)
-                let maxLen = max(text.count, cardName.count)
-                let similarity = 1.0 - Double(distance) / Double(maxLen)
-                bestScore = max(bestScore, similarity)
-            }
-
-            // Also try combining adjacent text segments (card names can span 2 lines)
-            if normalizedTexts.count >= 2 {
-                for i in 0..<(normalizedTexts.count - 1) {
-                    let combined = normalizedTexts[i] + " " + normalizedTexts[i + 1]
-                    if combined.contains(cardName) || cardName.contains(combined) {
-                        let ratio = Double(min(combined.count, cardName.count)) / Double(max(combined.count, cardName.count))
-                        bestScore = max(bestScore, 0.7 + ratio * 0.3)
-                    } else {
-                        let distance = levenshteinDistance(combined, cardName)
-                        let maxLen = max(combined.count, cardName.count)
-                        let similarity = 1.0 - Double(distance) / Double(maxLen)
-                        bestScore = max(bestScore, similarity)
-                    }
-                }
-            }
-
-            if bestScore >= 0.80 {
-                let existing = bestMatches[card.id]
-                if existing == nil || existing!.confidence < bestScore {
-                    bestMatches[card.id] = CardMatch(card: card, confidence: bestScore)
-                }
-            }
+        for text in allTexts {
+            results.append(contentsOf: extract(from: text, setIds: knownSetIds))
         }
 
-        return bestMatches.values
-            .sorted { $0.confidence > $1.confidence }
-            .prefix(5)
-            .map { $0 }
+        // Deduplicate, keep best
+        var best: [String: CardCodeExtraction] = [:]
+        for e in results {
+            let key = "\(e.setId)-\(e.collectorNumber)"
+            if best[key] == nil || (!best[key]!.hasTotal && e.hasTotal) {
+                best[key] = e
+            }
+        }
+        return Array(best.values)
+    }
+
+    nonisolated static func findCard(collectorNumber: Int, suffix: String?, in cards: [Card]) -> Card? {
+        let candidates = cards.filter { $0.collectorNumber == collectorNumber }
+        guard !candidates.isEmpty else { return nil }
+        if candidates.count == 1 { return candidates[0] }
+
+        if suffix == "a", let c = candidates.first(where: { $0.metadata.alternateArt }) { return c }
+        if suffix == "*", let c = candidates.first(where: { $0.metadata.signature }) { return c }
+
+        return candidates.first(where: { !$0.metadata.alternateArt && !$0.metadata.signature }) ?? candidates[0]
     }
 
     // MARK: - Private
 
-    private static func normalize(_ text: String) -> String {
-        text.lowercased()
-            .folding(options: .diacriticInsensitive, locale: .current)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+    nonisolated private static func extract(from text: String, setIds: Set<String>) -> [CardCodeExtraction] {
+        let upper = text.uppercased()
+        var results: [CardCodeExtraction] = []
+
+        for setId in setIds {
+            var start = upper.startIndex
+
+            while let range = upper.range(of: setId, range: start..<upper.endIndex) {
+                defer { start = range.upperBound }
+
+                // Don't match inside a longer word (but allow P before for promo)
+                if range.lowerBound > upper.startIndex {
+                    let before = upper[upper.index(before: range.lowerBound)]
+                    if before.isLetter && before != "P" { continue }
+                }
+
+                let rest = String(upper[range.upperBound...])
+
+                // Skip separators
+                var i = rest.startIndex
+                while i < rest.endIndex && "-– ".contains(rest[i]) {
+                    i = rest.index(after: i)
+                }
+                guard i < rest.endIndex else { continue }
+                let after = String(rest[i...])
+
+                // Extract digits
+                let rawLen = after.prefix(while: { $0.isNumber || $0 == "O" || $0 == "o" || $0 == "I" || $0 == "l" }).count
+                guard rawLen > 0 else { continue }
+                let raw = String(after.prefix(rawLen))
+
+                // Fix OCR digits
+                let fixed = fixOcrDigits(raw)
+                guard let num = Int(fixed), num > 0 else { continue }
+
+                // Suffix: a (alt art), * (signature)
+                let afterNum = after.dropFirst(rawLen)
+                var suffix: String?
+                if let c = afterNum.first {
+                    if c == "a" || c == "A" { suffix = "a" }
+                    else if c == "*" { suffix = "*" }
+                }
+
+                // Check /NNN for confidence
+                let compact = String(afterNum).replacingOccurrences(of: " ", with: "")
+                let hasTotal = compact.contains("/") && compact.split(separator: "/").last?.first?.isNumber == true
+
+                results.append(CardCodeExtraction(setId: setId, collectorNumber: num, suffix: suffix, hasTotal: hasTotal))
+            }
+        }
+        return results
     }
 
-    private static func levenshteinDistance(_ a: String, _ b: String) -> Int {
-        let a = Array(a)
-        let b = Array(b)
-        let m = a.count
-        let n = b.count
-
-        if m == 0 { return n }
-        if n == 0 { return m }
-
-        var prev = Array(0...n)
-        var curr = [Int](repeating: 0, count: n + 1)
-
-        for i in 1...m {
-            curr[0] = i
-            for j in 1...n {
-                let cost = a[i - 1] == b[j - 1] ? 0 : 1
-                curr[j] = min(
-                    prev[j] + 1,      // deletion
-                    curr[j - 1] + 1,   // insertion
-                    prev[j - 1] + cost // substitution
-                )
+    nonisolated private static func fixOcrDigits(_ text: String) -> String {
+        var result = ""
+        for char in text {
+            switch char {
+            case "O", "o": result.append("0")
+            case "I", "l": result.append("1")
+            default: result.append(char)
             }
-            swap(&prev, &curr)
         }
-
-        return prev[n]
+        return result
     }
 }

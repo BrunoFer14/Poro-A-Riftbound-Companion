@@ -8,9 +8,11 @@ struct DeckBuilderView: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var showCardPicker = false
+    @State private var showBattlefieldPicker = false
     @State private var isEditingName = false
     @State private var selectedCard: Card?
     @FocusState private var nameFocused: Bool
+    @State private var hasSavedInitial = false
 
     private var energyCurve: [(Int, Int)] {
         var curve: [Int: Int] = [:]
@@ -84,6 +86,48 @@ struct DeckBuilderView: View {
                 }
                 .padding(.horizontal)
 
+                // Runes section
+                runeSection
+
+                // Battlefields section
+                VStack(alignment: .leading, spacing: 8) {
+                    Button {
+                        showBattlefieldPicker = true
+                    } label: {
+                        HStack {
+                            Text("Battlefields")
+                                .font(.headline)
+                            Text("(\(deck.battlefields.count)/3)")
+                                .font(.subheadline)
+                                .foregroundStyle(deck.hasAllBattlefields ? .green : .orange)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .tint(.primary)
+
+                    if deck.battlefields.isEmpty {
+                        Text("Toca para escolher 3 battlefields.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        HStack(spacing: 8) {
+                            ForEach(deck.battlefields) { battlefield in
+                                VStack(spacing: 4) {
+                                    CardImageView(url: battlefield.media.imageUrl, width: 70, height: 98)
+                                    Text(battlefield.name)
+                                        .font(.caption2)
+                                        .lineLimit(1)
+                                }
+                                .frame(maxWidth: .infinity)
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal)
+
                 // Rune curve
                 if !energyCurve.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
@@ -129,7 +173,11 @@ struct DeckBuilderView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button("Cancelar") { dismiss() }
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                }
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -138,13 +186,34 @@ struct DeckBuilderView: View {
                     Image(systemName: "plus")
                 }
             }
-            ToolbarItem(placement: .confirmationAction) {
-                Button("Guardar") {
-                    saveDeck()
-                }
-            }
         }
-        .sheet(isPresented: $showCardPicker) {
+        .onDisappear {
+            autoSave()
+        }
+        .onChange(of: deck.entries) {
+            autoSave()
+        }
+        .onChange(of: deck.name) {
+            autoSave()
+        }
+        .onChange(of: deck.battlefields) {
+            autoSave()
+        }
+        .onChange(of: deck.runes) {
+            autoSave()
+        }
+        .sheet(isPresented: $showBattlefieldPicker, onDismiss: {
+            autoSave()
+        }) {
+            BattlefieldPickerView(
+                battlefields: $deck.battlefields,
+                collectionStore: collectionStore
+            )
+            .presentationDetents([.large])
+        }
+        .sheet(isPresented: $showCardPicker, onDismiss: {
+            autoSave()
+        }) {
             DeckCardPickerView(
                 deck: $deck,
                 collectionStore: collectionStore
@@ -156,13 +225,72 @@ struct DeckBuilderView: View {
         }
     }
 
-    private func saveDeck() {
+    // MARK: - Rune Section
+
+    private var runeSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Runes")
+                    .font(.headline)
+                Text("(\(deck.totalRunes)/12)")
+                    .font(.subheadline)
+                    .foregroundStyle(deck.hasAllRunes ? .green : .orange)
+            }
+
+            ForEach(deck.domains, id: \.self) { domain in
+                let count = deck.runes[domain] ?? 0
+                let canIncrement = deck.totalRunes < 12
+                let canDecrement = count > 0
+
+                HStack(spacing: 12) {
+                    DomainBadge(domain: domain)
+                        .frame(width: 60, alignment: .leading)
+
+                    Button {
+                        deck.runes[domain] = max(0, count - 1)
+                    } label: {
+                        Image(systemName: "minus.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(canDecrement ? .red : .secondary.opacity(0.3))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!canDecrement)
+
+                    Text("\(count)")
+                        .font(.title3.bold().monospacedDigit())
+                        .frame(minWidth: 24)
+                        .contentTransition(.numericText())
+                        .animation(.snappy, value: count)
+
+                    Button {
+                        deck.runes[domain] = count + 1
+                    } label: {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.title3)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!canIncrement)
+                    .foregroundStyle(canIncrement ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary.opacity(0.3)))
+
+                    Spacer()
+                }
+            }
+        }
+        .padding(.horizontal)
+    }
+
+    private func autoSave() {
         if isNewDeck {
-            deckStore.addDeck(deck)
+            guard !deck.entries.isEmpty || !deck.battlefields.isEmpty || deck.totalRunes > 0 else { return }
+            if !hasSavedInitial {
+                deckStore.addDeck(deck)
+                hasSavedInitial = true
+            } else {
+                deckStore.updateDeck(deck)
+            }
         } else {
             deckStore.updateDeck(deck)
         }
-        dismiss()
     }
 }
 

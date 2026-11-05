@@ -36,7 +36,7 @@ final class CameraManager: NSObject {
     private let videoOutput = AVCaptureVideoDataOutput()
     private let processingQueue = DispatchQueue(label: "com.poro.camera", qos: .userInitiated)
     private nonisolated(unsafe) var lastProcessedTime: CFTimeInterval = 0
-    private let throttleInterval: CFTimeInterval = 1.0
+    private let throttleInterval: CFTimeInterval = 0.15
 
     func requestPermission() {
         switch AVCaptureDevice.authorizationStatus(for: .video) {

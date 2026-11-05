@@ -6,6 +6,14 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		AF33044E2F8156F300190589 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = AF33044D2F8156F300190589 /* FirebaseMessaging */; };
+		AFDB519F2F4CCD6D002C1878 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = AFDB519E2F4CCD6D002C1878 /* FirebaseAuth */; };
+		AFDB51A12F4CCD6D002C1878 /* FirebaseAuthCombine-Community in Frameworks */ = {isa = PBXBuildFile; productRef = AFDB51A02F4CCD6D002C1878 /* FirebaseAuthCombine-Community */; };
+		AFDB51A32F4CCD6D002C1878 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = AFDB51A22F4CCD6D002C1878 /* FirebaseFirestore */; };
+		AFDB51A52F4CCD6D002C1878 /* FirebaseFirestoreCombine-Community in Frameworks */ = {isa = PBXBuildFile; productRef = AFDB51A42F4CCD6D002C1878 /* FirebaseFirestoreCombine-Community */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		AF374DDB2F44B7FB00E5FA27 /* Poro - A Riftbound Companion.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Poro - A Riftbound Companion.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,16 +31,29 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AFDB519F2F4CCD6D002C1878 /* FirebaseAuth in Frameworks */,
+				AFDB51A52F4CCD6D002C1878 /* FirebaseFirestoreCombine-Community in Frameworks */,
+				AF33044E2F8156F300190589 /* FirebaseMessaging in Frameworks */,
+				AFDB51A12F4CCD6D002C1878 /* FirebaseAuthCombine-Community in Frameworks */,
+				AFDB51A32F4CCD6D002C1878 /* FirebaseFirestore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		AF33044C2F8156F300190589 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		AF374DD22F44B7FB00E5FA27 = {
 			isa = PBXGroup;
 			children = (
 				AF374DDD2F44B7FB00E5FA27 /* Poro - A Riftbound Companion */,
+				AF33044C2F8156F300190589 /* Frameworks */,
 				AF374DDC2F44B7FB00E5FA27 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -65,6 +86,11 @@
 			);
 			name = "Poro - A Riftbound Companion";
 			packageProductDependencies = (
+				AFDB519E2F4CCD6D002C1878 /* FirebaseAuth */,
+				AFDB51A02F4CCD6D002C1878 /* FirebaseAuthCombine-Community */,
+				AFDB51A22F4CCD6D002C1878 /* FirebaseFirestore */,
+				AFDB51A42F4CCD6D002C1878 /* FirebaseFirestoreCombine-Community */,
+				AF33044D2F8156F300190589 /* FirebaseMessaging */,
 			);
 			productName = "Poro - A Riftbound Companion";
 			productReference = AF374DDB2F44B7FB00E5FA27 /* Poro - A Riftbound Companion.app */;
@@ -95,6 +121,9 @@
 			);
 			mainGroup = AF374DD22F44B7FB00E5FA27;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				AFDB519D2F4CCD6D002C1878 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = AF374DDC2F44B7FB00E5FA27 /* Products */;
 			projectDirPath = "";
@@ -257,6 +286,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Poro usa a câmara para reconhecer cartas Riftbound.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Para mostrar anúncios perto de ti.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -292,6 +322,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Poro usa a câmara para reconhecer cartas Riftbound.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Para mostrar anúncios perto de ti.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -336,6 +367,45 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		AFDB519D2F4CCD6D002C1878 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.9.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		AF33044D2F8156F300190589 /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AFDB519D2F4CCD6D002C1878 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
+		};
+		AFDB519E2F4CCD6D002C1878 /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AFDB519D2F4CCD6D002C1878 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		AFDB51A02F4CCD6D002C1878 /* FirebaseAuthCombine-Community */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AFDB519D2F4CCD6D002C1878 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = "FirebaseAuthCombine-Community";
+		};
+		AFDB51A22F4CCD6D002C1878 /* FirebaseFirestore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AFDB519D2F4CCD6D002C1878 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestore;
+		};
+		AFDB51A42F4CCD6D002C1878 /* FirebaseFirestoreCombine-Community */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AFDB519D2F4CCD6D002C1878 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = "FirebaseFirestoreCombine-Community";
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = AF374DD32F44B7FB00E5FA27 /* Project object */;
 }

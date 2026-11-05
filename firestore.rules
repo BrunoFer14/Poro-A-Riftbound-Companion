@@ -1,0 +1,70 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── User data (collection + decks) ─────────────────────────────────────
+    match /users/{userId}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ─── FCM tokens (nested under user profile) ──────────────────────────────
+    // Already covered by /users/{userId}/{document=**} rule above.
+
+    // ─── Reviews ─────────────────────────────────────────────────────────────
+    match /reviews/{reviewId} {
+      allow read: if request.auth != null;
+
+      allow create: if request.auth != null
+        && request.resource.data.reviewerId == request.auth.uid
+        // Prevent reviewing own listing
+        && request.resource.data.sellerId != request.auth.uid;
+
+      // No updates or deletes (immutable reviews)
+    }
+
+    // ─── Marketplace listings ────────────────────────────────────────────────
+    match /listings/{listingId} {
+      // Anyone authenticated can browse listings
+      allow read: if request.auth != null;
+
+      // Only the seller can create their own listing
+      allow create: if request.auth != null
+        && request.resource.data.sellerId == request.auth.uid;
+
+      // Only the seller can update or delete their own listing
+      allow update, delete: if request.auth != null
+        && resource.data.sellerId == request.auth.uid;
+    }
+
+    // ─── Conversations ───────────────────────────────────────────────────────
+    match /conversations/{convId} {
+      // Participants can read; non-existent docs allowed (resource == null) so
+      // getOrCreate can check existence before creating.
+      allow read: if request.auth != null
+        && (resource == null
+         || resource.data.buyerId == request.auth.uid
+         || resource.data.sellerId == request.auth.uid);
+
+      // Any authenticated user can create a conversation (as buyer)
+      allow create: if request.auth != null
+        && request.resource.data.buyerId == request.auth.uid;
+
+      // Only participants can update (e.g. lastMessage, unreadCount)
+      allow update: if request.auth != null
+        && (resource.data.buyerId == request.auth.uid
+         || resource.data.sellerId == request.auth.uid);
+
+      // Messages subcollection
+      match /messages/{messageId} {
+        allow read: if request.auth != null
+          && (get(/databases/$(database)/documents/conversations/$(convId)).data.buyerId == request.auth.uid
+           || get(/databases/$(database)/documents/conversations/$(convId)).data.sellerId == request.auth.uid);
+
+        allow create: if request.auth != null
+          && request.resource.data.senderId == request.auth.uid
+          && (get(/databases/$(database)/documents/conversations/$(convId)).data.buyerId == request.auth.uid
+           || get(/databases/$(database)/documents/conversations/$(convId)).data.sellerId == request.auth.uid);
+      }
+    }
+  }
+}

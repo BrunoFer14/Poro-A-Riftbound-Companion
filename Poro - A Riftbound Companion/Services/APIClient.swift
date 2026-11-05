@@ -21,7 +21,7 @@ enum APIError: LocalizedError {
 }
 
 enum APIClient {
-    static let baseURL = "https://api.riftcodex.com"
+    static let baseURL = "https://api.rifthunt.com"
 
     private static let decoder = JSONDecoder()
 
@@ -53,6 +53,9 @@ enum APIClient {
         do {
             return try decoder.decode(T.self, from: data)
         } catch {
+            #if DEBUG
+            print("⚠️ Decode error for \(T.self): \(error)")
+            #endif
             throw APIError.decodingError(error)
         }
     }

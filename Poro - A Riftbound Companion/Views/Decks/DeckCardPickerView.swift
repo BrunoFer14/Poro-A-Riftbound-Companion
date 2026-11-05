@@ -14,7 +14,7 @@ struct DeckCardPickerView: View {
         return collectionStore.entries
             .map(\.card)
             .filter { card in
-                guard card.classification.type != "Legend" else { return false }
+                guard card.classification.type != "Legend" && card.classification.type != "Battlefield" else { return false }
                 return !Set(card.classification.domain).isDisjoint(with: domainSet)
             }
             .sorted { ($0.attributes.energy ?? 0) < ($1.attributes.energy ?? 0) }

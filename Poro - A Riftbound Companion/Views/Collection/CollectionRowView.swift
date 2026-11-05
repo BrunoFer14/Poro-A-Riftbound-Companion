@@ -27,30 +27,97 @@ struct CollectionRowView: View {
 
             Spacer()
 
-            HStack(spacing: 10) {
-                Button {
-                    collectionStore.decrement(entry.card)
-                } label: {
-                    Image(systemName: "minus.circle")
-                        .font(.title3)
-                        .foregroundStyle(.red)
-                }
-                .buttonStyle(.plain)
+            VStack(spacing: 6) {
+                // Normal quantity
+                HStack(spacing: 10) {
+                    Button {
+                        collectionStore.decrement(entry.card)
+                    } label: {
+                        Image(systemName: "minus.circle")
+                            .font(.title3)
+                            .foregroundStyle(.red)
+                    }
+                    .buttonStyle(.plain)
 
-                Text("\(entry.quantity)")
-                    .font(.headline.monospacedDigit())
+                    Text("\(entry.quantity)")
+                        .font(.headline.monospacedDigit())
+                        .frame(minWidth: 24, alignment: .center)
+                        .contentTransition(.numericText())
+                        .animation(.snappy, value: entry.quantity)
+
+                    Button {
+                        collectionStore.increment(entry.card)
+                    } label: {
+                        Image(systemName: "plus.circle")
+                            .font(.title3)
+                            .foregroundStyle(.tint)
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                // Foil quantity
+                HStack(spacing: 10) {
+                    Button {
+                        collectionStore.decrementFoil(entry.card)
+                    } label: {
+                        Image(systemName: "minus.circle")
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+                    .buttonStyle(.plain)
+
+                    HStack(spacing: 2) {
+                        Text("✦")
+                            .font(.caption2)
+                            .foregroundStyle(.purple)
+                        Text("\(entry.foilQuantity)")
+                            .font(.subheadline.monospacedDigit())
+                            .contentTransition(.numericText())
+                            .animation(.snappy, value: entry.foilQuantity)
+                    }
                     .frame(minWidth: 24, alignment: .center)
-                    .contentTransition(.numericText())
-                    .animation(.snappy, value: entry.quantity)
 
-                Button {
-                    collectionStore.increment(entry.card)
-                } label: {
-                    Image(systemName: "plus.circle")
-                        .font(.title3)
-                        .foregroundStyle(.tint)
+                    Button {
+                        collectionStore.incrementFoil(entry.card)
+                    } label: {
+                        Image(systemName: "plus.circle")
+                            .font(.caption)
+                            .foregroundStyle(.purple)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
+
+                // Promo quantity
+                HStack(spacing: 10) {
+                    Button {
+                        collectionStore.decrementPromo(entry.card)
+                    } label: {
+                        Image(systemName: "minus.circle")
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+                    .buttonStyle(.plain)
+
+                    HStack(spacing: 2) {
+                        Text("P")
+                            .font(.caption2.bold())
+                            .foregroundStyle(.orange)
+                        Text("\(entry.promoQuantity)")
+                            .font(.subheadline.monospacedDigit())
+                            .contentTransition(.numericText())
+                            .animation(.snappy, value: entry.promoQuantity)
+                    }
+                    .frame(minWidth: 24, alignment: .center)
+
+                    Button {
+                        collectionStore.incrementPromo(entry.card)
+                    } label: {
+                        Image(systemName: "plus.circle")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
         .padding(.vertical, 4)

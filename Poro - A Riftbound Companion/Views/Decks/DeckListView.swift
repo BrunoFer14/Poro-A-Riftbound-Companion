@@ -7,7 +7,7 @@ struct DeckListView: View {
 
     @State private var showLegendPicker = false
     @State private var showImport = false
-    @State private var selectedDeck: Deck?
+    @State private var selectedDeckId: UUID?
 
     var body: some View {
         NavigationStack {
@@ -22,7 +22,7 @@ struct DeckListView: View {
                     List {
                         ForEach(deckStore.decks) { deck in
                             Button {
-                                selectedDeck = deck
+                                selectedDeckId = deck.id
                             } label: {
                                 DeckRowView(deck: deck)
                             }
@@ -60,9 +60,14 @@ struct DeckListView: View {
                     deckStore: deckStore
                 )
             }
-            .fullScreenCover(item: $selectedDeck) { deck in
-                NavigationStack {
-                    DeckDetailView(deck: deck, deckStore: deckStore, collectionStore: collectionStore)
+            .fullScreenCover(isPresented: Binding(
+                get: { selectedDeckId != nil },
+                set: { if !$0 { selectedDeckId = nil } }
+            )) {
+                if let deckId = selectedDeckId {
+                    NavigationStack {
+                        DeckDetailView(deckId: deckId, deckStore: deckStore, collectionStore: collectionStore)
+                    }
                 }
             }
             .sheet(isPresented: $showImport) {

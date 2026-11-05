@@ -4,6 +4,7 @@ struct SetCardListView: View {
     let set: CardSetDetail
     let collectionStore: CollectionStore
     let cardCache: CardCache
+    var authService: AuthService? = nil
 
     @State private var viewModel = CardListViewModel()
     @State private var showFilters = false
@@ -37,7 +38,7 @@ struct SetCardListView: View {
                 )
                 .overlay(alignment: .bottom) {
                     Button("Tentar novamente") {
-                        Task { await viewModel.loadCards(forSet: set.label, cache: cardCache) }
+                        Task { await viewModel.loadCards(forSetId: set.setId, cache: cardCache) }
                     }
                     .buttonStyle(.borderedProminent)
                     .padding(.bottom, 40)
@@ -54,6 +55,16 @@ struct SetCardListView: View {
                             )
                         }
                     }
+
+                    if viewModel.isFuzzySearching {
+                        HStack {
+                            Spacer()
+                            ProgressView("A pesquisar...")
+                                .font(.caption)
+                            Spacer()
+                        }
+                        .listRowSeparator(.hidden)
+                    }
                 }
                 .listStyle(.plain)
                 .overlay {
@@ -62,6 +73,7 @@ struct SetCardListView: View {
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
                         HStack(spacing: 12) {
+                            sortMenu
                             Button {
                                 showFilters = true
                             } label: {
@@ -130,7 +142,9 @@ struct SetCardListView: View {
                     CardFilterView(
                         filter: $vm.filter,
                         availableDomains: viewModel.availableDomains,
-                        availableEnergyCosts: viewModel.availableEnergyCosts
+                        availableEnergyCosts: viewModel.availableEnergyCosts,
+                        availableTypes: viewModel.availableTypes,
+                        availableRarities: viewModel.availableRarities
                     )
                     .presentationDetents([.medium, .large])
                 }
@@ -139,16 +153,41 @@ struct SetCardListView: View {
         .navigationTitle(set.name)
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(for: Card.self) { card in
-            CardDetailView(card: card, collectionStore: collectionStore)
+            CardDetailView(card: card, collectionStore: collectionStore, authService: authService, cardCache: cardCache)
         }
         .task {
-            await viewModel.loadCards(forSet: set.label, cache: cardCache)
+            await viewModel.loadCards(forSetId: set.setId, cache: cardCache)
+        }
+    }
+
+    private var sortMenu: some View {
+        Menu {
+            ForEach(CardSortOption.allCases, id: \.self) { option in
+                Button {
+                    if viewModel.sortOption == option {
+                        viewModel.sortAscending.toggle()
+                    } else {
+                        viewModel.sortOption = option
+                        viewModel.sortAscending = true
+                    }
+                } label: {
+                    HStack {
+                        Label(option.rawValue, systemImage: option.icon)
+                        if viewModel.sortOption == option {
+                            Image(systemName: viewModel.sortAscending
+                                  ? "chevron.up" : "chevron.down")
+                        }
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: "arrow.up.arrow.down")
         }
     }
 
     @ViewBuilder
     private var emptyStateOverlay: some View {
-        if viewModel.displayedCards.isEmpty {
+        if viewModel.displayedCards.isEmpty && !viewModel.isFuzzySearching {
             if isDebouncing {
                 Color.clear
             } else if viewModel.filter.isActive {

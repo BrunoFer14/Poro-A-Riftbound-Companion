@@ -4,7 +4,9 @@ struct CardFilterView: View {
     @Binding var filter: CardFilter
     let availableDomains: [String]
     let availableEnergyCosts: [Int]
+    var availableTypes: [String] = []
     var availableSets: [String] = []
+    var availableRarities: [String] = []
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -15,20 +17,52 @@ struct CardFilterView: View {
                         FlowLayout(spacing: 8) {
                             ForEach(availableSets, id: \.self) { set in
                                 FilterChip(
-                                    title: setDisplayName(set),
+                                    title: set,
                                     isSelected: filter.selectedSets.contains(set)
                                 ) {
-                                    if filter.selectedSets.contains(set) {
-                                        filter.selectedSets.remove(set)
-                                    } else {
-                                        filter.selectedSets.insert(set)
-                                    }
+                                    filter.selectedSets.toggle(set)
                                 }
                             }
                         }
                         .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
                     } header: {
                         Text("Expansão")
+                    }
+                }
+
+                if !availableTypes.isEmpty {
+                    Section {
+                        FlowLayout(spacing: 8) {
+                            ForEach(availableTypes, id: \.self) { type in
+                                FilterChip(
+                                    title: type,
+                                    isSelected: filter.selectedTypes.contains(type)
+                                ) {
+                                    filter.selectedTypes.toggle(type)
+                                }
+                            }
+                        }
+                        .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
+                    } header: {
+                        Text("Tipo")
+                    }
+                }
+
+                if !availableRarities.isEmpty {
+                    Section {
+                        FlowLayout(spacing: 8) {
+                            ForEach(availableRarities, id: \.self) { rarity in
+                                FilterChip(
+                                    title: rarity,
+                                    isSelected: filter.selectedRarities.contains(rarity)
+                                ) {
+                                    filter.selectedRarities.toggle(rarity)
+                                }
+                            }
+                        }
+                        .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
+                    } header: {
+                        Text("Raridade")
                     }
                 }
 
@@ -39,11 +73,7 @@ struct CardFilterView: View {
                                 title: domain,
                                 isSelected: filter.selectedDomains.contains(domain)
                             ) {
-                                if filter.selectedDomains.contains(domain) {
-                                    filter.selectedDomains.remove(domain)
-                                } else {
-                                    filter.selectedDomains.insert(domain)
-                                }
+                                filter.selectedDomains.toggle(domain)
                             }
                         }
                     }
@@ -59,17 +89,13 @@ struct CardFilterView: View {
                                 title: "\(cost)",
                                 isSelected: filter.selectedEnergyCosts.contains(cost)
                             ) {
-                                if filter.selectedEnergyCosts.contains(cost) {
-                                    filter.selectedEnergyCosts.remove(cost)
-                                } else {
-                                    filter.selectedEnergyCosts.insert(cost)
-                                }
+                                filter.selectedEnergyCosts.toggle(cost)
                             }
                         }
                     }
                     .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
                 } header: {
-                    Text("Rune Cost")
+                    Text("Custo de Energia")
                 }
             }
             .navigationTitle("Filtros")
@@ -89,16 +115,23 @@ struct CardFilterView: View {
             }
         }
     }
+}
 
-    private func setDisplayName(_ label: String) -> String {
-        switch label {
-        case "SFD": return "Spiritforged"
-        default: return label
+// MARK: - Set Toggle Helper
+
+private extension Set {
+    mutating func toggle(_ element: Element) {
+        if contains(element) {
+            remove(element)
+        } else {
+            insert(element)
         }
     }
 }
 
-private struct FilterChip: View {
+// MARK: - Filter Chip
+
+struct FilterChip: View {
     let title: String
     let isSelected: Bool
     let action: () -> Void
@@ -115,6 +148,8 @@ private struct FilterChip: View {
         .buttonStyle(.plain)
     }
 }
+
+// MARK: - Flow Layout
 
 struct FlowLayout: Layout {
     var spacing: CGFloat = 8
